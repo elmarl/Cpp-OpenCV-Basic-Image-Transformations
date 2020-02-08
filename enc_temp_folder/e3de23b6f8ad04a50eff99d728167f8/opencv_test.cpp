@@ -96,7 +96,6 @@ int mirrorImage(Mat& new_image, const Mat& img) {
     const int row_length = img.cols - 1;
     new_image.forEach<Vec3b>([&img, &row_length](Vec3b& c, const int position[]) -> void {
         for (int i = 0; i < 3; i++) {
-            //in opencv, y before x. (y, x)
             c[i] = img.at<Vec3b>(position[0],row_length - position[1])[i];
         }
         });
