@@ -44,6 +44,8 @@ int rotateImage(Mat& new_image, const Mat& img) {
     //              |   |     |   |
     //              |   |_ _ _|   |
     //              |_ _ _ _ _ _ _|
+    //
+    //  # - Coordinates of (OffsetX, OffsetY)
 
     //Create a ROI - region of interest, in the bounding box matrix that will take into itself the original image to rotate, this is to place the original image in the center of the bounding box
     double OffsetX = (bb.width - img.size().width) / 2;
