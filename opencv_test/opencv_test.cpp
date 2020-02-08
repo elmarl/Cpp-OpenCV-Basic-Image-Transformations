@@ -59,7 +59,17 @@ int rotateImage(Mat& new_image, const Mat& img) {
 
     return EXIT_SUCCESS;
 }
-int scaleImage(const Mat& img) {
+int scaleImage(Mat& new_image, const Mat& img) {
+    int scale = 0;
+    std::cout << " Change the scale of image " << std::endl;
+    do {
+        std::cout << "# Enter scaling factor [0-10]: " << std::endl;
+        std::cin >> scale;
+    } while (scale > 10 || scale < 0);
+    
+    //multiply the size of the original image, img, with the scaling factor and output to new_image
+    resize(img, new_image, cv::Size(img.size().width*scale, img.size().height*scale));
+
     return EXIT_SUCCESS;
 }
 int change_brightnessImage(Mat& new_image, const Mat& img) {
@@ -68,10 +78,14 @@ int change_brightnessImage(Mat& new_image, const Mat& img) {
     double alpha = 1.0; 
     int beta = 0;      
     std::cout << " Change brightness of image by Linear Transforms " << std::endl;
-    std::cout << "# Enter the alpha value [1.0-3.0]: "; 
-    std::cin >> alpha;
-    std::cout << "* Enter the beta value [0-100]: ";    
-    std::cin >> beta;
+    do {
+        std::cout << "# Enter the alpha value [1.0-3.0]: ";
+        std::cin >> alpha;
+    } while (alpha > 3.0 || alpha < 1.0);
+    do {
+        std::cout << "* Enter the beta value [0-100]: ";
+        std::cin >> beta;
+    } while (beta > 100 || beta < 0);
 
     //Mat::*.forEach method is the fastest way to iterate over an image, multithreaded function
     new_image.forEach<Vec3b>([&alpha, &beta, &img](Vec3b& c, const int position[]) -> void {
@@ -135,7 +149,7 @@ int main()
         result = rotateImage(new_image, img);
         break;
     case command::SCALE:
-        scaleImage(new_image);
+        result = scaleImage(new_image, img);
         break;
     case command::CHANGE_BRIGHTNESS:
         result = change_brightnessImage(new_image, img);
