@@ -2,6 +2,7 @@
 //
 
 #include <iostream>
+#include "stdint.h"
 #include<opencv2/opencv.hpp>
 
 using namespace cv;
@@ -24,25 +25,45 @@ int rotateImage(Mat& new_image, const Mat& img) {
     std::cout << " Change image rotation by linear transform " << std::endl;
     std::cout << "# Enter an angle to rotate to: ";
     std::cin >> angle;
-
-    Point2f center(img.cols/2, img.rows/2);
-    Mat RM = getRotationMatrix2D(center,angle,1);
-    Rect2f bb = RotatedRect(cv::Point2f(), img.size(), angle).boundingRect2f();
-
-    RM.at<double>(0, 2) = 0;
-    RM.at<double>(0, 2) += bb.width / 2.0;
-    RM.at<double>(1, 2) += bb.height / 2.0 - img.rows / 2;
     
-    warpAffine(img, new_image, RM, bb.size());
+    Point2d center(img.size().width/2, img.size().height/2);
+    Rect2f bb = RotatedRect(center, img.size(), angle).boundingRect(); //bb - bounding box
+    //Don't let the bounding box becme lower in height than the original image, it needs to fit the original image inside of itself before rotation
+    if (bb.height < img.size().height) {
+        bb.height = img.size().height;
+    }
+    Mat resized = Mat::zeros(bb.size(), img.type());
+    //the distance to the new, bigger Mat from the image placed in the center
+    //
+    //               OffsetX
+    //               <-->
+    //               _ _ _ _ _ _ _
+    // OffsetY {    |             |
+    //              |   #- - -    |
+    //              |   |     |   |
+    //              |   |     |   |
+    //              |   |_ _ _|   |
+    //              |_ _ _ _ _ _ _|
+
+    //Create a ROI - region of interest, in the bounding box matrix that will take into itself the original image to rotate, this is to place the original image in the center of the bounding box
+    double OffsetX = (bb.width - img.size().width) / 2;
+    double OffsetY = (bb.height - img.size().height) / 2;
+    Rect roi = Rect(OffsetX, OffsetY, img.size().width, img.size().height);
+    //Copy the original image (img) to the ROI inside the larger image - resized
+    img.copyTo(resized(roi));
+    //update the center position, since now the original image is inside the resized image.
+    center += Point2d(OffsetX, OffsetY);
+    //Get the rotation matrix with the given center and angle and apply it
+    Mat M = getRotationMatrix2D(center, angle, 1.0);
+    warpAffine(resized, new_image, M, resized.size());   
     return EXIT_SUCCESS;
 }
 int scaleImage(const Mat& img) {
     return EXIT_SUCCESS;
 }
-
-/*< alpha = contrast control */
- /*< beta = brightness control */
 int change_brightnessImage(Mat& new_image, const Mat& img) {
+    // alpha = contrast control 
+    // beta = brightness control
     double alpha = 1.0; 
     int beta = 0;      
     std::cout << " Change brightness of image by Linear Transforms " << std::endl;
@@ -51,14 +72,21 @@ int change_brightnessImage(Mat& new_image, const Mat& img) {
     std::cout << "* Enter the beta value [0-100]: ";    
     std::cin >> beta;
 
-    for (int y = 0; y < img.rows; y++) {
+    //Mat::*.forEach method is the fastest way to iterate over an image, multithreaded function
+    new_image.forEach<Vec3b>([&alpha, &beta, &img](Vec3b& c, const int position[]) -> void {
+        for (int i = 0; i < 3; i++) {
+            c[i] = saturate_cast<uint8_t>(alpha * img.at<Vec3b>(position[0], position[1])[i] + beta);
+        }    
+     });
+    //Mat::*.at<Vec3b>(r, c) not the most efficient but more readable than foreach
+    /*for (int y = 0; y < img.rows; y++) {
         for (int x = 0; x < img.cols; x++) {
             for (int c = 0; c < img.channels(); c++) {
                 new_image.at<Vec3b>(y, x)[c] =
-                    saturate_cast<uchar>(alpha * img.at<Vec3b>(y, x)[c] + beta);
+                    saturate_cast<uint8_t>(alpha * img.at<Vec3b>(y, x)[c] + beta);
             }
         }
-    }
+    }*/
     return EXIT_SUCCESS;
 }
 int mirrorImage(const Mat& img) {
@@ -67,7 +95,7 @@ int mirrorImage(const Mat& img) {
 
 int main()
 {
-    Mat img = imread("img.jpg");
+    Mat img = imread("img.jpg", 1);
     if (img.empty())
         {
             std::cout << "failed to open img.jpg" << std::endl;
